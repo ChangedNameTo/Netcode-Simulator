@@ -16,6 +16,8 @@ import os
 from curses import wrapper
 # Imports textpad, I used this during testing
 from curses import textpad
+# Imports the ability for random numbers
+from random import randint
 
 # Sets up command line parser
 @click.command()
@@ -78,17 +80,14 @@ def start_program(stdscr):
     # Allow things to appear at all
     window_init(stdscr)
 
-    # Draw the words for labeling
-    server_init(stdscr)
+    draw_screen(stdscr)
 
-    # Create stats
-    stats_init(stdscr)
-
-    # Fire off the server loop cycle
-    player_init(stdscr)
+    # Starts the game
+    run_game(stdscr)
 
     # Closes on keypress
     stdscr.getch()
+
 
 # ========================================== Init Functions ===========================================
 
@@ -103,19 +102,8 @@ def window_init(stdscr):
     winheight = curses.LINES
     winwidth  = curses.COLS
 
-    # Draws a border around the whole window
-    stdscr.border(0)
-
     # Splits the window into 3 equal parts
     winsplitdist = winwidth / 3
-    stdscr.vline(0, winsplitdist, "|", winheight)
-    stdscr.vline(0, (winsplitdist * 2), "|", winheight)
-
-    # Leaves space for stat tracking
-    stdscr.hline((winheight - 10), 0,"-", winwidth)
-
-    # Refreshes the draw window
-    stdscr.refresh()
 
 # Paints on labels
 def server_init(stdscr):
@@ -139,12 +127,18 @@ def server_init(stdscr):
     stdscr.addstr((winheight - 6), (winsplitdist + (winsplitdist / 2)), "- C2 Packets Lost")
     stdscr.addstr((winheight - 6), ((winsplitdist * 2) + (winsplitdist / 2)), "- Kills Missed")
 
+    # Creates the stacks for packets because I am dumb and didn't make this OO from the start
+    # When an object is added to the stack, it's referring to the tick on which it is sent
+    global p1movestack, p2movestack
+    global p1shotstack, p2shotstack
+
 # Create statistics and statistics labels
 def stats_init(stdscr):
-    # Declare as global
+    # Declare as global for all static stacks
     global c1kills, c1deaths, c1ping, c1killmiss
     global c2kills, c2deaths, c2ping, c2killmiss
     global tickrate, c1packetloss, c2packetloss
+    global tick
 
     # Define them
     c1kills = 0
@@ -162,6 +156,8 @@ def stats_init(stdscr):
     c1packetloss = 0
     c2packetloss = 0
 
+    tick = 0
+
 # Tells the players where to be at the start
 def player_init(stdscr):
     global p1slocation, p2slocation
@@ -178,13 +174,87 @@ def player_init(stdscr):
     p1c2location = (winsplitdist / 3) + (winsplitdist * 2)
     p2c2location = ((winsplitdist / 3) * 2) + (winsplitdist * 2)
 
-    # Draws the initial server tick
-    draw_tick(stdscr)
+# Redraws lines after the first tick
+def redraw_lines(stdscr):
+    stdscr.border(0)
+    stdscr.vline(0, winsplitdist, "|", winheight)
+    stdscr.vline(0, (winsplitdist * 2), "|", winheight)
+    stdscr.hline((winheight - 10), 0,"-", winwidth)
 
+# I realized later that I should have done this in a OOP style too late, so this is an ugly loop
 # ======================================== Client Functions ===========================================
+def player_move(stdscr):
+    global p1c1location, p2c2location
 
+    num = randint(1,3)
+    if( num == 1):
+        if(p1c1location - 1 > 0):
+            p1c1location = p1c1location - 1
+    elif( num == 2):
+        p1c1location
+    else:
+        if(p1c1location + 1 < winwidth):
+            p1c1location = p1c1location + 1
+
+    num = randint(1,3)
+    if( num == 1):
+        if(p2c2location - 1 > 0):
+            p2c2location = p2c2location - 1
+    elif( num == 2):
+        p2c2location
+    else:
+        if(p2c2location + 1 < winwidth):
+            p2c2location = p2c2location + 1
+
+    stdscr.addstr(4, ((winsplitdist / 2)), str(p1c1location))
+    stdscr.addstr(4, ((winsplitdist * 2) + (winsplitdist / 2)), str(p2c2location))
+
+#def player_shoot():
 
 # ====================================== Running and Drawing ==========================================
+def draw_screen(stdscr):
+    stdscr.clear()
+
+    # Draw the words for labeling
+    server_init(stdscr)
+
+    # Create stats
+    stats_init(stdscr)
+
+    # Fire off the server loop cycle
+    player_init(stdscr)
+
+    # Redraws guide lines
+    redraw_lines(stdscr)
+
+    # Draws the server tick
+    draw_tick(stdscr)
+
+def redraw_screen(stdscr):
+    stdscr.clear()
+
+    # Redraws guide lines
+    redraw_lines(stdscr)
+
+    # Redraws the labels
+    server_init(stdscr)
+
+    # Draws the server tick
+    draw_tick(stdscr)
+
+def run_game(stdscr):
+    global c1kills, c2kills
+    global tick
+    while(c1kills <= 10 and c2kills <= 10):
+        # Move each player
+        player_move(stdscr)
+        # Each client decides whether or not to shoot based on if there is a target to hit in front of them
+        # player_shoot()
+        redraw_screen(stdscr)
+        time.sleep(0.3)
+        tick = tick + 1
+        c1kills = c1kills + 1
+
 # Every server tick, the entire screen needs to refresh.
 def draw_tick(stdscr):
     # Draws serverplayer1
@@ -228,7 +298,7 @@ def draw_tick(stdscr):
 # Every tick, needs to update the bottom row stats
 def update_stats(stdscr):
     # Updates the stats printed
-    stdscr.addstr((winheight - 9), (winsplitdist + (winsplitdist / 2) - 5), str(0))
+    stdscr.addstr((winheight - 9), (winsplitdist + (winsplitdist / 2) - 5), str(tick))
 
     stdscr.addstr((winheight - 8), ((winsplitdist / 2) - 9), str(c1kills))
     stdscr.addstr((winheight - 8), ((winsplitdist / 2) - 7), "/")
@@ -248,7 +318,6 @@ def update_stats(stdscr):
 
     # Refreshes the draw window
     stdscr.refresh()
-
 
 # ====================================== Starts This Bad Boy ==========================================
 # Calls the function, starts the program
