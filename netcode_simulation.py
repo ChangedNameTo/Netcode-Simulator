@@ -41,11 +41,11 @@ from random import randint
 @click.option("--c1packet",
              type=int,
              default=2,
-             help="Defines the packet loss chance player 1. Default 2" )
+             help="Defines the packet loss chance in percent for player 1. Default 2" )
 @click.option("--c2packet",
              type=int,
              default=2,
-             help="Defines  the packet loss chance player 2. Default 2" )
+             help="Defines  the packet loss chance in percent for player 2. Default 2" )
 @click.option("--tickrate",
              type=int,
              default=60,
@@ -132,8 +132,8 @@ def server_init(stdscr):
     # Creates the stacks for packets because I am dumb and didn't make this OO from the start
     # Packet structure is a tuple containing the newly updated position of the local player and whether
     # or not they shot
-    c1packetstack = []
-    c2packetstack = []
+    c1packetstack = ()
+    c2packetstack = ()
 
 # Create statistics and statistics labels
 def stats_init(stdscr):
@@ -182,6 +182,9 @@ def player_init(stdscr):
     # Client2 locations
     p1c2location = (winsplitdist / 3) + (winsplitdist * 2)
     p2c2location = (winsplitdist / 3) + (winsplitdist * 2)
+
+    c1_send_packet(stdscr)
+    c2_send_packet(stdscr)
 
 # Redraws lines after the first tick
 def redraw_lines(stdscr):
@@ -241,10 +244,12 @@ def c2_update_ping():
 
 # Appends the commands to the back of the packet stacks that the server pulls off of
 def c1_send_packet(stdscr):
-    c1packetstack = tuple([p1c1location, p1_shoot_logic()])
+    global p1c1location, c1packetstack
+    c1packetstack = (p1c1location, p1_shoot_logic())
 
 def c2_send_packet(stdscr):
-    c2packetstack = tuple([p2c2location, p2_shoot_logic()])
+    global p2c2location, c2packetstack
+    c2packetstack = (p2c2location, p2_shoot_logic())
 
 # Checks if the center of player is in front of anywhere on the p1 "hitbox", draws a line if it is
 def p1_shoot_logic():
@@ -265,11 +270,11 @@ def p2_shoot_logic():
 # Shots can be drawn in 3 seperate areas that are all distinct from each other. The section param checks which place to draw
 def p1_shoot_draw(stdscr, section):
     if(section == 1):
-        stdscr.vline(11, p1c1location + 2, "v", 7)
+        stdscr.vline(12, p1c1location + 2, "v", 7)
     elif(section == 2):
-        stdscr.vline(11, p1slocation + 2, "v", 7)
+        stdscr.vline(12, p1slocation + 2, "v", 7)
     else:
-        stdscr.vline(11, p1c2location + 2, "v", 7)
+        stdscr.vline(12, p1c2location + 2, "v", 7)
 
 def p2_shoot_draw(stdscr, section):
     if(section == 1):
@@ -284,8 +289,43 @@ def p2_shoot_draw(stdscr, section):
 # ======================================== Server Functions ===========================================
 # If the server has entered a server tick state, then it needs to process the packets that it has currently
 # recieved, update the game state, then distribute packets back to each client so that they can sync state
-def server_send_packets(stdscr):
-    return 1
+def server_process(stdscr):
+    global c1packetloss, c2packetloss
+    global c1packetstack, c2packetstack
+    global c1kills, c1deaths
+    global c2kills, c2deaths
+    global c1killmiss, c2killmiss
+
+    # Packet loss is a thing in this simulation, so rolls dice to see if someone's packet just disappears
+    # |  |(
+    # || |_
+    num = randint(0, 100)
+    if(num < c1packetloss):
+        c1packetstack = None
+    else:
+        # Updates the server positions
+        p1slocation = c1packetstack[0]
+        if(c1packetstack[1]):
+            # If valid returns true and calls the shot for the server, and registers a kill
+            if((p1slocation + 3) <= (p2slocation + 5) and (p1slocation + 3) >= (p2slocation)):
+                c1kills  = c1kills + 1
+                c2deaths = c2deaths + 1
+            else:
+                c1killmiss = c1killmiss + 1
+
+    num = randint(0, 100)
+    if(num < c2packetloss):
+        c2packetstack = None
+    else:
+        # Updates the server positions
+        p2slocation = c2packetstack[0]
+        if(c1packetstack[1]):
+            # If valid returns true and calls the shot for the server, and registers a kill
+            if((p2slocation + 3) <= (p1slocation + 5) and (p2slocation + 3) >= (p1slocation)):
+                c2kills  = c2kills + 1
+                c1deaths = c1deaths + 1
+            else:
+                c2killmiss = c2killmiss + 1
 
 # ====================================== Running and Drawing ==========================================
 # Initial screen draw on load
@@ -324,10 +364,6 @@ def run_game(stdscr):
         # Move each player
         player_move(stdscr)
 
-
-        if(nextservertick == looptick):
-            server_send_packets(stdscr)
-
         if(nextc1packet == looptick):
             c1_send_packet(stdscr)
             c1_update_ping()
@@ -336,10 +372,13 @@ def run_game(stdscr):
             c2_send_packet(stdscr)
             c2_update_ping()
 
+        # If the server is ready to tick, it tocks ayyyyy
+        if(nextservertick == looptick):
+            server_process(stdscr)
+
         redraw_screen(stdscr)
         time.sleep(0.3)
         looptick = looptick + 1
-        c1kills = c1kills + 1
 
 # Every server tick, the entire screen needs to refresh.
 def draw_tick(stdscr):
