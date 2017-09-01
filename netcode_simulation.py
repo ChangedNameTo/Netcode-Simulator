@@ -264,26 +264,20 @@ def p2_shoot_logic():
 
 # Shots can be drawn in 3 seperate areas that are all distinct from each other. The section param checks which place to draw
 def p1_shoot_draw(stdscr, section):
-    stdscr.addstr(2, 1, "p1 shoot")
-    stdscr.refresh()
     if(section == 1):
-        stdscr.vline(11, p1c1location + 3, "v", 7)
+        stdscr.vline(11, p1c1location + 2, "v", 7)
     elif(section == 2):
-        stdscr.vline(11, p1slocation + 3, "v", 7)
+        stdscr.vline(11, p1slocation + 2, "v", 7)
     else:
-        stdscr.vline(11, p1c2location + 3, "v", 7)
-    stdscr.refresh()
+        stdscr.vline(11, p1c2location + 2, "v", 7)
 
 def p2_shoot_draw(stdscr, section):
-    stdscr.addstr(3, 1, "p2 shoot")
-    stdscr.refresh()
     if(section == 1):
-        stdscr.vline(winheight - 23, p2c1location + 3, "^", 7)
+        stdscr.vline(winheight - 30, p2c1location + 2, "^", 7)
     elif(section == 2):
-        stdscr.vline(winheight - 23, p2slocation + 3, "^", 7)
+        stdscr.vline(winheight - 30, p2slocation + 2, "^", 7)
     else:
-        stdscr.vline(winheight - 23, p2c2location + 3, "^", 7)
-    stdscr.refresh()
+        stdscr.vline(winheight - 30, p2c2location + 2, "^", 7)
 
 
 # Handles server packet management, distributing kills fairly, and handling game state conflicts
@@ -330,13 +324,6 @@ def run_game(stdscr):
         # Move each player
         player_move(stdscr)
 
-        # Each client decides whether or not to shoot based on if there is a target to hit in front of them
-        p1_shoot_draw(stdscr, 1)
-        if(p1_shoot_logic()):
-            stdscr.addstr(2, 1, "p1 shoot")
-            p1_shoot_draw(stdscr, 1)
-        if(p2_shoot_logic()):
-            p2_shoot_draw(stdscr, 3)
 
         if(nextservertick == looptick):
             server_send_packets(stdscr)
@@ -388,6 +375,12 @@ def draw_tick(stdscr):
     stdscr.vline(winheight - 23, p2c2location + 4, "|", 3)
     stdscr.hline(winheight - 23, p2c2location, "-", 5)
     stdscr.hline(winheight - 20, p2c2location, "-", 5)
+
+    # Each client decides whether or not to shoot based on if there is a target to hit in front of them
+    if(p1_shoot_logic()):
+        p1_shoot_draw(stdscr, 1)
+    if(p2_shoot_logic()):
+        p2_shoot_draw(stdscr, 3)
 
     update_stats(stdscr)
 
