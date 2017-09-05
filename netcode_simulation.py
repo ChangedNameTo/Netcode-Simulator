@@ -234,9 +234,11 @@ def c1_update_ping():
     global nextc1packet
     global looptick
 
-    num = randint(0, c1variance)
+    num = randint(1, c1variance)
     c1ping = c1latency + (num * randint(-1, 1))
     nextc1packet = looptick + c1ping
+    if(nextc1packet <= looptick):
+        nextc1packet = looptick + 1
 
 def c2_update_ping():
     global c2variance
@@ -244,9 +246,11 @@ def c2_update_ping():
     global nextc2packet
     global looptick
 
-    num = randint(0, c2variance)
+    num = randint(1, c2variance)
     c2ping = c2latency + (num * randint(-1, 1))
     nextc2packet = looptick + c2ping
+    if(nextc2packet <= looptick):
+        nextc2packet = looptick + 1
 
 # Appends the commands to the back of the packet stacks that the server pulls off of
 def c1_send_packet(stdscr):
@@ -326,6 +330,7 @@ def server_process(stdscr):
                 # If valid returns true and calls the shot for the server, and registers a kill
                 if((p1slocation + 3) <= (p2slocation + 5) and (p1slocation + 3) >= (p2slocation)):
                     p1_shoot_draw(stdscr, 2)
+                    stdscr.refresh()
                     c1kills  = c1kills + 1
                     c2deaths = c2deaths + 1
                 else:
@@ -343,6 +348,7 @@ def server_process(stdscr):
                 # If valid returns true and calls the shot for the server, and registers a kill
                 if((p2slocation + 3) <= (p1slocation + 5) and (p2slocation + 3) >= (p1slocation)):
                     p2_shoot_draw(stdscr, 2)
+                    stdscr.refresh()
                     c2kills  = c2kills + 1
                     c1deaths = c1deaths + 1
                 else:
